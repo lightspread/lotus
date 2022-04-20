@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/filecoin-project/specs-actors/actors/runtime"
 	goruntime "runtime"
 	"sync"
-
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -142,7 +141,7 @@ func (ss *syscallShim) VerifyConsensusFault(a, b, extra []byte) (*runtime7.Conse
 		consensusFault = &runtime7.ConsensusFault{
 			Target: blockA.Miner,
 			Epoch:  blockB.Height,
-			Type:   runtime7.ConsensusFaultDoubleForkMining,
+			Type:   runtime.ConsensusFaultType(runtime7.ConsensusFaultDoubleForkMining),
 		}
 	}
 
@@ -153,7 +152,7 @@ func (ss *syscallShim) VerifyConsensusFault(a, b, extra []byte) (*runtime7.Conse
 		consensusFault = &runtime7.ConsensusFault{
 			Target: blockA.Miner,
 			Epoch:  blockB.Height,
-			Type:   runtime7.ConsensusFaultTimeOffsetMining,
+			Type:   runtime.ConsensusFaultType(runtime7.ConsensusFaultTimeOffsetMining),
 		}
 	}
 
@@ -176,7 +175,7 @@ func (ss *syscallShim) VerifyConsensusFault(a, b, extra []byte) (*runtime7.Conse
 			consensusFault = &runtime7.ConsensusFault{
 				Target: blockA.Miner,
 				Epoch:  blockB.Height,
-				Type:   runtime7.ConsensusFaultParentGrinding,
+				Type:   runtime.ConsensusFaultType(runtime7.ConsensusFaultParentGrinding),
 			}
 		}
 	}
@@ -245,7 +244,7 @@ func (ss *syscallShim) workerKeyAtLookback(height abi.ChainEpoch) (address.Addre
 	return ResolveToKeyAddr(ss.cstate, ss.cst, info.Worker)
 }
 
-func (ss *syscallShim) VerifyPoSt(info proof5.WindowPoStVerifyInfo) error {
+func (ss *syscallShim) VerifyPoSt(info proof7.WindowPoStVerifyInfo) error {
 	ok, err := ss.verifier.VerifyWindowPoSt(context.TODO(), info)
 	if err != nil {
 		return err
@@ -256,7 +255,7 @@ func (ss *syscallShim) VerifyPoSt(info proof5.WindowPoStVerifyInfo) error {
 	return nil
 }
 
-func (ss *syscallShim) VerifySeal(info proof5.SealVerifyInfo) error {
+func (ss *syscallShim) VerifySeal(info proof7.SealVerifyInfo) error {
 	//_, span := trace.StartSpan(ctx, "ValidatePoRep")
 	//defer span.End()
 
@@ -283,7 +282,7 @@ func (ss *syscallShim) VerifySeal(info proof5.SealVerifyInfo) error {
 	return nil
 }
 
-func (ss *syscallShim) VerifyAggregateSeals(aggregate proof5.AggregateSealVerifyProofAndInfos) error {
+func (ss *syscallShim) VerifyAggregateSeals(aggregate proof7.AggregateSealVerifyProofAndInfos) error {
 	ok, err := ss.verifier.VerifyAggregateSeals(aggregate)
 	if err != nil {
 		return xerrors.Errorf("failed to verify aggregated PoRep: %w", err)
@@ -322,7 +321,7 @@ func (ss *syscallShim) VerifySignature(sig crypto.Signature, addr address.Addres
 
 var BatchSealVerifyParallelism = goruntime.NumCPU()
 
-func (ss *syscallShim) BatchVerifySeals(inp map[address.Address][]proof5.SealVerifyInfo) (map[address.Address][]bool, error) {
+func (ss *syscallShim) BatchVerifySeals(inp map[address.Address][]proof7.SealVerifyInfo) (map[address.Address][]bool, error) {
 	out := make(map[address.Address][]bool)
 
 	sema := make(chan struct{}, BatchSealVerifyParallelism)
@@ -334,7 +333,7 @@ func (ss *syscallShim) BatchVerifySeals(inp map[address.Address][]proof5.SealVer
 
 		for i, s := range seals {
 			wg.Add(1)
-			go func(ma address.Address, ix int, svi proof5.SealVerifyInfo, res []bool) {
+			go func(ma address.Address, ix int, svi proof7.SealVerifyInfo, res []bool) {
 				defer wg.Done()
 				sema <- struct{}{}
 
